@@ -53,6 +53,16 @@ LEGAL_SUFFIXES = [
     (r'\bcenter\b', 'ctr'),
     (r'\bcompany\b', 'co'),
     (r'\bdba\b', ''),
+    # French legal suffixes (15% of test data)
+    (r'\bs\.?a\.?r\.?l\.?\b', 'sarl'),
+    (r'\bs\.?a\.?s\.?u\.?\b', 'sas'),
+    (r'\bs\.?a\.?s\.?\b', 'sas'),
+    (r'\be\.?u\.?r\.?l\.?\b', 'eurl'),
+    (r'\bs\.?c\.?i\.?\b', 'sci'),
+    (r'\bs\.?n\.?c\.?\b', 'snc'),
+    (r'\bassociation\b', 'assoc'),
+    (r'\bamicale\b', 'amicale'),
+    (r'\bfederation\b', 'fed'),
 ]
 
 # Address abbreviation map
@@ -84,7 +94,21 @@ ADDR_ABBREVS = [
     (r'\bbehind\b', ''),
     (r'\badjacent\s*to\b', ''),
     (r'\bnext\s*to\b', ''),
+    # French address terms
+    (r'\brue\b', 'rue'),
+    (r'\bimpasse\b', 'imp'),
+    (r'\ball[eé]e\b', 'allee'),
+    (r'\bchemin\b', 'chem'),
+    (r'\bcedex\b', 'cedex'),
 ]
+
+# Known legal words to strip for core name matching
+CORE_LEGAL_STOPWORDS = {
+    'llc', 'llp', 'pvtltd', 'inc', 'corp', 'ltd', 'pvt', 'ent', 'svc',
+    'grp', 'intl', 'natl', 'assoc', 'consult', 'trd', 'ind', 'sol',
+    'tech', 'mgmt', 'dev', 'fdn', 'hosp', 'sch', 'ctr', 'co',
+    'sarl', 'sas', 'eurl', 'sci', 'snc', 'fed', 'amicale'
+}
 
 
 def normalize_unicode(text: str) -> str:
@@ -171,3 +195,25 @@ def sorted_tokens(norm_name: str) -> str:
 def extract_numbers(text: str) -> List[str]:
     """Extract all numeric tokens from text."""
     return re.findall(r'\b\d+\b', text)
+
+
+def extract_core_name(norm_name: str) -> str:
+    """Extract brand/entity core name by removing common legal company suffixes."""
+    tokens = [t for t in norm_name.split() if t not in CORE_LEGAL_STOPWORDS]
+    return ' '.join(tokens) if tokens else norm_name
+
+
+def extract_postal_code(norm_addr: str, country: str) -> str:
+    """Extract standard postal/PIN code for India (6-digit), US (5-digit), and France (5-digit)."""
+    c = country.lower().strip()
+    if c == 'india':
+        m = re.findall(r'\b[1-9]\d{5}\b', norm_addr)
+        return m[0] if m else ''
+    elif c == 'us':
+        m = re.findall(r'\b\d{5}\b', norm_addr)
+        return m[0] if m else ''
+    elif c == 'france':
+        m = re.findall(r'\b(?:0[1-9]|[1-8]\d|9[0-8])\d{3}\b', norm_addr)
+        return m[0] if m else ''
+    return ''
+
